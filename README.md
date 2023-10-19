@@ -3,5 +3,5 @@ A bash script that downloads FCC Amateur Radio licenses data, populates a databa
 
 Project Site:
 
-(https://blog.radioartisan.com/fcc-callsign-database-script/)https://blog.radioartisan.com/fcc-callsign-database-script/
+https://blog.radioartisan.com/fcc-callsign-database-script/
 
