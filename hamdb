@@ -94,7 +94,7 @@ fi
 
 
  
-if [ `echo "show databases;"|mysql --user=hamdb --password=${MYSQLPASSWD}|grep -c fcc_amateur` -eq 0 ]; then
+if [ `echo "show databases;"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}|grep -c fcc_amateur` -eq 0 ]; then
   echo "No database found; creating..."
   echo "create database fcc_amateur;"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
   echo "use fcc_amateur;create table en (fccid int not null, callsign varchar(8) not null, primary key(fccid),full_name varchar(32),first varchar(20),middle varchar(1), last varchar(20), address1 varchar(64), city varchar(20), state varchar(2), zip varchar(10), index idx_zip (zip), index idx_callsign (callsign));"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
