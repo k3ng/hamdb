@@ -28,25 +28,38 @@
 # GRANT ALL PRIVILEGES ON *.* TO 'hamdb'@localhost IDENTIFIED BY 'yourpassword';
 
 STOREDIR=~/hamdb.temp
-VERSION=2023.10.18
+VERSION=2023.10.28
 CONFIGFILE=~/.hamdb.cnf
-#DBPOPULATEDTAGFILE=~/.hamdb.populated
-DEBUG=0
+DEBUG=1
+USE_CURL_NOT_WGET=0
 WGET=/usr/bin/wget
+CURL=/usr/bin/curl
 UNZIP=/usr/bin/unzip
 DAY=`date -d "-1 day" | tr '[:upper:]' '[:lower:]' | sed 's/\([a-z]*\).*/\1/'`
 
 # if today is Monday, get the full file, otherwise get a smaller daily update file
 if [ ${DAY} == sun ]; then
   FULLIMPORT=1
+else
+  FULLIMPORT=0
+fi
+
+if [ ${1} == full ]; then
+  FULLIMPORT=1
+fi
+
+if [ ${1} == getfccfile ]; then
+  FULLIMPORT=1
+fi
+
+
+if [ ${FULLIMPORT} -eq 1 ]; then
   FCC_FILE_LOCATION=https://data.fcc.gov/download/pub/uls/complete//l_amat.zip
   DOWNLOAD_FILE=l_amat.zip
 else
-  FULLIMPORT=0
   FCC_FILE_LOCATION=https://data.fcc.gov/download/pub/uls/daily//l_am_${DAY}.zip
   DOWNLOAD_FILE=l_am_${DAY}.zip
 fi
-
 
 if [ ${DEBUG} -eq 1 ]; then
   echo "In debug mode..."
@@ -73,12 +86,19 @@ if [ ${DEBUG} -eq 1 ]; then
   echo "Password is ${MYSQLPASSWD}"
   echo "\s" | mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}|grep "Server version:" | awk '{print $3}'
 fi
+
+if [ ${1} = removedb ]; then
+  echo "drop database fcc_amateur;"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
+  exit 0
+fi
+
+
  
 if [ `echo "show databases;"|mysql --user=hamdb --password=${MYSQLPASSWD}|grep -c fcc_amateur` -eq 0 ]; then
   echo "No database found; creating..."
   echo "create database fcc_amateur;"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
   echo "use fcc_amateur;create table en (fccid int not null, callsign varchar(8) not null, primary key(fccid),full_name varchar(32),first varchar(20),middle varchar(1), last varchar(20), address1 varchar(64), city varchar(20), state varchar(2), zip varchar(10), index idx_zip (zip), index idx_callsign (callsign));"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
-  echo "use fcc_amateur;create table am (fccid int not null, callsign varchar(8) not null, primary key(fccid), class varchar(1), col4 varchar(1), col5 varchar(2), col6 varchar(3), former_call varchar(8), former_class varchar(1), index idx_callsign (callsign), index idx_class(class));"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
+  echo "use fcc_amateur;create table am (fccid int not null, callsign varchar(8) not null, primary key(fccid), class varchar(1), col4 varchar(1), col5 varchar(2), col6 varchar(3), former_call varchar(8), former_class varchar(1), index idx_callsign (callsign), index idx_class(class), index idx_former_call(former_call));"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
   echo "use fcc_amateur;create table hd (fccid int not null, callsign varchar(8) not null, primary key(fccid), status varchar(1), index idx_callsign (callsign), index idx_status (status) );"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
 fi
 
@@ -99,10 +119,14 @@ case "$1" in
  
   getfccfile)
       echo "Downloading database from FCC..."
-      $WGET -nd -d --header="Accept: text/html" --user-agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10.8; rv:21.0) Gecko/20100101 Firefox/21.0" $FCC_FILE_LOCATION
+      if [ $USE_CURL_NOT_WGET -eq 1 ]; then
+        $CURL -O $FCC_FILE_LOCATION
+      else
+        $WGET -nd -d --header="Accept: text/html" --user-agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10.8; rv:21.0) Gecko/20100101 Firefox/21.0" $FCC_FILE_LOCATION
+      fi
   ;;
  
-  populatedb | populatedatabase | updatedatabase | updatedb | update)
+  full | populatedb | populatedatabase | updatedatabase | updatedb | update)
     if [ ! -d ${STOREDIR} ]; then
       mkdir ${STOREDIR}
     fi
@@ -110,8 +134,11 @@ case "$1" in
  
     if [ ! -f "${DOWNLOAD_FILE}" ]; then
       echo "Downloading database from FCC..."
-      $WGET -nd -d --header="Accept: text/html" --user-agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10.8; rv:21.0) Gecko/20100101 Firefox/21.0" $FCC_FILE_LOCATION
- 
+      if [ $USE_CURL_NOT_WGET -eq 1 ]; then
+        $CURL -O $FCC_FILE_LOCATION
+      else
+        $WGET -nd -d --header="Accept: text/html" --user-agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10.8; rv:21.0) Gecko/20100101 Firefox/21.0" $FCC_FILE_LOCATION
+      fi
     fi
  
     if [ ! -f EN.dat ]; then
@@ -152,11 +179,7 @@ case "$1" in
  
       echo "use fcc_amateur;drop table if exists en_temp;create table en_temp (fccid int not null, callsign varchar(8) not null, primary key(fccid),full_name varchar(64),first varchar(20),middle varchar(1), last varchar(20), address1 varchar(64), city varchar(20), state varchar(2), zip varchar(10), index idx_zip (zip), index idx_callsign (callsign));"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
  
-      #echo "use fcc_amateur;drop table if exists en_temp;create table en_temp (fccid int, callsign varchar(8) not null, primary key(callsign),full_name varchar(64),first varchar(20),middle varchar(1), last varchar(20), address1 varchar(64), city varchar(20), state varchar(2), zip varchar(10), index idx_zip (zip), index idx_fccid (fccid));"|mysql --user=${MYSQLUSERNAME} --password=$MYSQLPASSWD
- 
-      echo "use fcc_amateur;drop table if exists am_temp;create table am_temp (fccid int not null, callsign varchar(8) not null, primary key(fccid), class varchar(1), col4 varchar(1), col5 varchar(2), col6 varchar(3), former_call varchar(8), former_class varchar(1), index idx_callsign (callsign), index idx_class(class));"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
- 
-      #echo "use fcc_amateur;drop table if exists am_temp;create table am_temp (fccid int, callsign varchar(8) not null, primary key(callsign), class varchar(1), col4 varchar(1), col5 varchar(2), col6 varchar(3), former_call varchar(8), former_class varchar(1), index idx_fccid (fccid), index idx_class(class));"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
+      echo "use fcc_amateur;drop table if exists am_temp;create table am_temp (fccid int not null, callsign varchar(8) not null, primary key(fccid), class varchar(1), col4 varchar(1), col5 varchar(2), col6 varchar(3), former_call varchar(8), former_class varchar(1), index idx_callsign (callsign), index idx_class(class), index idx_former_call(former_call));"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
  
       echo "use fcc_amateur;drop table if exists hd_temp;create table hd_temp (fccid int not null, callsign varchar(8) not null, primary key(fccid), status varchar(1), index idx_callsign (callsign), index idx_status (status) );"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
  
@@ -231,6 +254,7 @@ case "$1" in
     cd -
     rmdir ${STOREDIR}
   ;; 
+
   makedatabase | makedb)
  
     echo "Creating database fcc_amateur...";
@@ -238,23 +262,15 @@ case "$1" in
     echo "create database fcc_amateur;"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
  
     echo "use fcc_amateur;create table en (fccid int not null, callsign varchar(8) not null, primary key(fccid),full_name varchar(32),first varchar(20),middle varchar(1), last varchar(20), address1 varchar(64), city varchar(20), state varchar(2), zip varchar(10), index idx_zip (zip), index idx_callsign (callsign));"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
- 
-    echo "use fcc_amateur;create table am (fccid int not null, callsign varchar(8) not null, primary key(fccid), class varchar(1), col4 varchar(1), col5 varchar(2), col6 varchar(3), former_call varchar(8), former_class varchar(1), index idx_callsign (callsign), index idx_class(class));"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
- 
-    echo "use fcc_amateur;create table hd (fccid int not null, callsign varchar(8) not null, primary key(fccid), status varchar(1), index idx_callsign (callsign), index idx_status (status) );"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
- 
-  ;;
- 
-  removedatabase | removedb)
-    echo "drop database fcc_amateur;"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
-    rm -f ${DBPOPULATEDTAGFILE}
+    echo "use fcc_amateur;create table am (fccid int not null, callsign varchar(8) not null, primary key(fccid), class varchar(1), col4 varchar(1), col5 varchar(2), col6 varchar(3), former_call varchar(8), former_class varchar(1), index idx_callsign (callsign), index idx_class(class), index idx_former_call(former_call));"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
+    echo "use fcc_amateur;create table hd (fccid int not null, callsign varchar(8) not null, primary key(fccid), status varchar(1), index idx_callsign (callsign), index idx_status (status) );"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD} 
   ;;
  
   removetables)
     echo "use fcc_amateur;drop table if exists en;drop table if exists am;drop table if exists hd;drop table if exists en_temp;drop table if exists am_temp;drop table if exists hd_temp"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
   ;;
  
-  zipcodebatch)
+  zipcode)
     echo "use fcc_amateur;select en.callsign,class,first,last,address1,city,state,zip from en, am, hd  where en.fccid=am.fccid and en.fccid=hd.fccid and hd.status=\"A\" and zip like \"$2%\";" | mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD} -N --batch | awk -F "\t" '{print $1","$2","$3","$4","$5","$6","$7","$8}'
   ;;
  
@@ -274,7 +290,16 @@ case "$1" in
   ;;
  
   -h | --help | help)
-    echo "Help:"
+    echo -e "Help:\r\n\r\n"
+    echo -e "\t<CALLSIGN>\t- Search for a callsign"
+    echo -e "\tpopulate\t- Perform a full download or partial update based on the day"
+    echo -e "\tfull\t\t- Force a full update"
+    echo -e "\tmakedb\t\t- Just make the database"
+    echo -e "\tremovedb\t- Remove the database"
+    echo -e "\tcount\t\t- Show counts of various things in the database"
+    echo -e "\tzipcode <ZIPCODE>\t- Show all amateurs in a zip code"
+    echo -e "\tlike <CALLSIGN>\t- Perform a search with % wildcard(s)"
+    echo -e "\tgetfccfile\t- Just download the full FCC file"
     ;;
  
   -v | --version | version)
@@ -282,13 +307,20 @@ case "$1" in
     ;;
  
   like)
-    CALLSIGN=`echo $2|sed y/abcdefghijklmnopqrstuvwxyz/ABCDEFGHIJKLMNOPQRSTUVWXYZ/`
-    echo "use fcc_amateur;select en.callsign, am.class, full_name, address1, city, state, zip, former_call from en, am, hd where en.fccid=am.fccid and en.fccid=hd.fccid and hd.status=\"A\" and en.callsign like  \"$CALLSIGN%\";"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
+    CALLSIGN=`echo ${2}|sed y/abcdefghijklmnopqrstuvwxyz/ABCDEFGHIJKLMNOPQRSTUVWXYZ/`
+    echo "use fcc_amateur;select en.callsign, am.class, full_name, address1, city, state, zip, former_call from en, am, hd where en.fccid=am.fccid and en.fccid=hd.fccid and hd.status=\"A\" and en.callsign like  \"${CALLSIGN}%\";"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
   ;;
+
+  former)
+    CALLSIGN=`echo ${2}|sed y/abcdefghijklmnopqrstuvwxyz/ABCDEFGHIJKLMNOPQRSTUVWXYZ/`
+    #echo "use fcc_amateur;select en.callsign, am.class, full_name, address1, city, state, zip, former_call from en, am, hd where en.fccid=am.fccid and en.fccid=hd.fccid and hd.status=\"A\" and (en.callsign=\"$CALLSIGN\" or former_call=\"$CALLSIGN\");"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
+    echo "use fcc_amateur;select * from en where en.callsign=\"${CALLSIGN}\";"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
+    echo "use fcc_amateur;select fccid, callsign, former_call from am where (am.former_call=\"${CALLSIGN}\" or am.callsign=\"${CALLSIGN}\");"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
+    ;;
  
   *)
-    CALLSIGN=`echo $1|sed y/abcdefghijklmnopqrstuvwxyz/ABCDEFGHIJKLMNOPQRSTUVWXYZ/`
-    echo "use fcc_amateur;select en.callsign, am.class, full_name, address1, city, state, zip, former_call from en, am, hd where en.fccid=am.fccid and en.fccid=hd.fccid and hd.status=\"A\" and en.callsign=\"$CALLSIGN\";"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
-    #echo "use fcc_amateur;select * from en where en.callsign=\"$CALLSIGN\";"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
+    CALLSIGN=`echo ${1}|sed y/abcdefghijklmnopqrstuvwxyz/ABCDEFGHIJKLMNOPQRSTUVWXYZ/`
+    echo "use fcc_amateur;select * from en where en.callsign=\"${CALLSIGN}\";"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
     exit 0
 esac
+
