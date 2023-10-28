@@ -28,7 +28,7 @@
 # GRANT ALL PRIVILEGES ON *.* TO 'hamdb'@localhost IDENTIFIED BY 'yourpassword';
 
 STOREDIR=~/hamdb.temp
-VERSION=2023.10.28
+VERSION=2023.10.28.2144
 CONFIGFILE=~/.hamdb.cnf
 DEBUG=0
 USE_CURL_NOT_WGET=0
@@ -97,7 +97,7 @@ fi
 if [ `echo "show databases;"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}|grep -c fcc_amateur` -eq 0 ]; then
   echo "No database found; creating..."
   echo "create database fcc_amateur;"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
-  echo "use fcc_amateur;create table en (fccid int not null, callsign varchar(8) not null, primary key(fccid),full_name varchar(32),first varchar(20),middle varchar(1), last varchar(20), address1 varchar(64), city varchar(20), state varchar(2), zip varchar(10), index idx_zip (zip), index idx_callsign (callsign));"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
+  echo "use fcc_amateur;create table en (fccid int not null, callsign varchar(8) not null, primary key(fccid),full_name varchar(128),first varchar(20),middle varchar(1), last varchar(20), address1 varchar(64), city varchar(20), state varchar(2), zip varchar(10), index idx_zip (zip), index idx_callsign (callsign));"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
   echo "use fcc_amateur;create table am (fccid int not null, callsign varchar(8) not null, primary key(fccid), class varchar(1), col4 varchar(1), col5 varchar(2), col6 varchar(3), former_call varchar(8), former_class varchar(1), index idx_callsign (callsign), index idx_class(class), index idx_former_call(former_call));"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
   echo "use fcc_amateur;create table hd (fccid int not null, callsign varchar(8) not null, primary key(fccid), status varchar(1), index idx_callsign (callsign), index idx_status (status) );"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
 fi
@@ -177,7 +177,7 @@ case "$1" in
  
       echo "Creating temporary tables in Mysql..."
  
-      echo "use fcc_amateur;drop table if exists en_temp;create table en_temp (fccid int not null, callsign varchar(8) not null, primary key(fccid),full_name varchar(64),first varchar(20),middle varchar(1), last varchar(20), address1 varchar(64), city varchar(20), state varchar(2), zip varchar(10), index idx_zip (zip), index idx_callsign (callsign));"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
+      echo "use fcc_amateur;drop table if exists en_temp;create table en_temp (fccid int not null, callsign varchar(8) not null, primary key(fccid),full_name varchar(128),first varchar(20),middle varchar(1), last varchar(20), address1 varchar(64), city varchar(20), state varchar(2), zip varchar(10), index idx_zip (zip), index idx_callsign (callsign));"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
  
       echo "use fcc_amateur;drop table if exists am_temp;create table am_temp (fccid int not null, callsign varchar(8) not null, primary key(fccid), class varchar(1), col4 varchar(1), col5 varchar(2), col6 varchar(3), former_call varchar(8), former_class varchar(1), index idx_callsign (callsign), index idx_class(class), index idx_former_call(former_call));"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
  
@@ -261,7 +261,7 @@ case "$1" in
  
     echo "create database fcc_amateur;"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
  
-    echo "use fcc_amateur;create table en (fccid int not null, callsign varchar(8) not null, primary key(fccid),full_name varchar(32),first varchar(20),middle varchar(1), last varchar(20), address1 varchar(64), city varchar(20), state varchar(2), zip varchar(10), index idx_zip (zip), index idx_callsign (callsign));"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
+    echo "use fcc_amateur;create table en (fccid int not null, callsign varchar(8) not null, primary key(fccid),full_name varchar(128),first varchar(20),middle varchar(1), last varchar(20), address1 varchar(64), city varchar(20), state varchar(2), zip varchar(10), index idx_zip (zip), index idx_callsign (callsign));"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
     echo "use fcc_amateur;create table am (fccid int not null, callsign varchar(8) not null, primary key(fccid), class varchar(1), col4 varchar(1), col5 varchar(2), col6 varchar(3), former_call varchar(8), former_class varchar(1), index idx_callsign (callsign), index idx_class(class), index idx_former_call(former_call));"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
     echo "use fcc_amateur;create table hd (fccid int not null, callsign varchar(8) not null, primary key(fccid), status varchar(1), index idx_callsign (callsign), index idx_status (status) );"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD} 
   ;;
