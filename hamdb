@@ -30,7 +30,7 @@
 STOREDIR=~/hamdb.temp
 VERSION=2023.10.28
 CONFIGFILE=~/.hamdb.cnf
-DEBUG=1
+DEBUG=0
 USE_CURL_NOT_WGET=0
 WGET=/usr/bin/wget
 CURL=/usr/bin/curl
