@@ -28,7 +28,7 @@
 # GRANT ALL PRIVILEGES ON *.* TO 'hamdb'@localhost IDENTIFIED BY 'yourpassword';
 
 STOREDIR=~/hamdb.temp
-VERSION=2023.10.28.2144
+VERSION=2023.10.31.1851
 CONFIGFILE=~/.hamdb.cnf
 DEBUG=0
 USE_CURL_NOT_WGET=0
@@ -316,6 +316,11 @@ case "$1" in
     #echo "use fcc_amateur;select en.callsign, am.class, full_name, address1, city, state, zip, former_call from en, am, hd where en.fccid=am.fccid and en.fccid=hd.fccid and hd.status=\"A\" and (en.callsign=\"$CALLSIGN\" or former_call=\"$CALLSIGN\");"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
     echo "use fcc_amateur;select * from en where en.callsign=\"${CALLSIGN}\";"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
     echo "use fcc_amateur;select fccid, callsign, former_call from am where (am.former_call=\"${CALLSIGN}\" or am.callsign=\"${CALLSIGN}\");"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
+    ;;
+
+  lastname)
+    #echo "use fcc_amateur;select * from en where en.last like \"${2}\";"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
+    echo "use fcc_amateur;select en.callsign, am.class, full_name, address1, city, state, zip, former_call from en, am, hd where en.fccid=am.fccid and en.fccid=hd.fccid and hd.status=\"A\" and en.last like \"${2}\";"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
     ;;
  
   *)
