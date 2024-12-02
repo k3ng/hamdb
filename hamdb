@@ -28,9 +28,9 @@
 # GRANT ALL PRIVILEGES ON *.* TO 'hamdb'@localhost IDENTIFIED BY 'yourpassword';
 
 STOREDIR=~/hamdb.temp
-VERSION=2023.10.31.1851
+VERSION=2024.12.02.1300
 CONFIGFILE=~/.hamdb.cnf
-DEBUG=0
+DEBUG=1
 USE_CURL_NOT_WGET=0
 WGET=/usr/bin/wget
 CURL=/usr/bin/curl
@@ -99,7 +99,7 @@ if [ `echo "show databases;"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPAS
   echo "create database fcc_amateur;"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
   echo "use fcc_amateur;create table en (fccid int not null, callsign varchar(8) not null, primary key(fccid),full_name varchar(128),first varchar(20),middle varchar(1), last varchar(20), address1 varchar(64), city varchar(20), state varchar(2), zip varchar(10), index idx_zip (zip), index idx_callsign (callsign));"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
   echo "use fcc_amateur;create table am (fccid int not null, callsign varchar(8) not null, primary key(fccid), class varchar(1), col4 varchar(1), col5 varchar(2), col6 varchar(3), former_call varchar(8), former_class varchar(1), index idx_callsign (callsign), index idx_class(class), index idx_former_call(former_call));"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
-  echo "use fcc_amateur;create table hd (fccid int not null, callsign varchar(8) not null, primary key(fccid), status varchar(1), index idx_callsign (callsign), index idx_status (status) );"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
+  echo "use fcc_amateur;create table hd_temp (fccid int not null, callsign varchar(8) not null, primary key(fccid), status varchar(1), radio_service_code varchar(2), grant_date datetime, expired_data datetime, cancellation_date datetime, index idx_callsign (callsign), index idx_status (status) );"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
 fi
 
 if [ `echo "use fcc_amateur;select COUNT(fccid) from en;"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD} -s` -eq 0 ]; then
@@ -168,8 +168,22 @@ case "$1" in
  
     if [ ! -f hd_temp.txt ]; then
       echo "Creating temporary file for table hd..."
-      cat ./HD.dat |sed s/[\\\"]//g|awk -F "|" '{print "\""$2"\",\""$5"\",\""$6"\""}'>./hd_temp.txt
+      cat ./HD.dat |sed s/[\\\"]//g|awk -F "|" '{print "\""$2"\",\""$5"\",\""$6"\",\""$7"\",\""$8"\",\""$9"\",\""$10"\""}'>./hd_temp_temp.txt
+      awk -F, '{
+      # Remove quotes for processing
+      gsub(/"/, "", $0);
+      # Reformat dates (5th, 6th, and 7th fields) from MM/DD/YYYY to YYYY-MM-DD
+      for (i=5; i<=7; i++) {
+        split($i, date_parts, "/");
+        $i = date_parts[3] "-" date_parts[1] "-" date_parts[2];
+      }
+      # Print the reformatted line with quotes restored
+      print "\"" $1 "\",\"" $2 "\",\"" $3 "\",\"" $4 "\",\"" $5 "\",\"" $6 "\",\"" $7 "\""
+      }' "./hd_temp_temp.txt" > "./hd_temp.txt"
+
     fi
+
+echo "Dates reformatted and saved to $output_file"
  
     if [ ${FULLIMPORT} -eq 1 ]; then
 
@@ -181,7 +195,7 @@ case "$1" in
  
       echo "use fcc_amateur;drop table if exists am_temp;create table am_temp (fccid int not null, callsign varchar(8) not null, primary key(fccid), class varchar(1), col4 varchar(1), col5 varchar(2), col6 varchar(3), former_call varchar(8), former_class varchar(1), index idx_callsign (callsign), index idx_class(class), index idx_former_call(former_call));"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
  
-      echo "use fcc_amateur;drop table if exists hd_temp;create table hd_temp (fccid int not null, callsign varchar(8) not null, primary key(fccid), status varchar(1), index idx_callsign (callsign), index idx_status (status) );"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
+      echo "use fcc_amateur;drop table if exists hd_temp;create table hd_temp (fccid int not null, callsign varchar(8) not null, primary key(fccid), status varchar(1), radio_service_code varchar(2), grant_date datetime, expired_data datetime, cancellation_date datetime, index idx_callsign (callsign), index idx_status (status) );"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
  
       echo "Populating database table en..."
 
@@ -271,7 +285,11 @@ case "$1" in
   ;;
  
   zipcode)
-    echo "use fcc_amateur;select en.callsign,class,first,last,address1,city,state,zip from en, am, hd  where en.fccid=am.fccid and en.fccid=hd.fccid and hd.status=\"A\" and zip like \"$2%\";" | mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD} -N --batch | awk -F "\t" '{print $1","$2","$3","$4","$5","$6","$7","$8}'
+    echo "use fcc_amateur;select en.callsign,class,first,last,address1,city,state,zip from en, am, hd  where en.fccid=am.fccid and en.fccid=hd.fccid and hd.status=\"A\" and zip like \"${2}%\";" | mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD} -N --batch | awk -F "\t" '{print $1","$2","$3","$4","$5","$6","$7","$8}'
+  ;;
+
+  state)
+    echo "use fcc_amateur;select en.callsign,class,first,last,address1,city,state,zip from en, am, hd  where en.fccid=am.fccid and en.fccid=hd.fccid and hd.status=\"A\" and state =  \"${2}\";" | mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD} -N --batch | awk -F "\t" '{print $1","$2","$3","$4","$5","$6","$7","$8}'
   ;;
  
   dumptableen)
@@ -298,17 +316,27 @@ case "$1" in
     echo -e "\tremovedb\t- Remove the database"
     echo -e "\tcount\t\t- Show counts of various things in the database"
     echo -e "\tzipcode <ZIPCODE>\t- Show all amateurs in a zip code"
+    echo -e "\tstate <ST>\t- Show all amateurs in a state"
     echo -e "\tlike <CALLSIGN>\t- Perform a search with % wildcard(s)"
     echo -e "\tgetfccfile\t- Just download the full FCC file"
+    echo -e "\tsql \"<SQL STATEMENT>\"\t- Send SQL query directly to the server"
     ;;
  
   -v | --version | version)
     echo ${VERSION}
     ;;
+
+  sql)
+    mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD} -e "${2}" fcc_amateur
+  ;;
  
   like)
     CALLSIGN=`echo ${2}|sed y/abcdefghijklmnopqrstuvwxyz/ABCDEFGHIJKLMNOPQRSTUVWXYZ/`
     echo "use fcc_amateur;select en.callsign, am.class, full_name, address1, city, state, zip, former_call from en, am, hd where en.fccid=am.fccid and en.fccid=hd.fccid and hd.status=\"A\" and en.callsign like  \"${CALLSIGN}%\";"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
+  ;;
+
+  last)
+    echo "use fcc_amateur;select en.callsign, am.class, full_name, address1, city, state, zip, former_call from en, am, hd where en.fccid=am.fccid and en.fccid=hd.fccid and en.last like  \"${2}\";"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
   ;;
 
   former)
@@ -328,4 +356,5 @@ case "$1" in
     echo "use fcc_amateur;select * from en where en.callsign=\"${CALLSIGN}\";"|mysql --user=${MYSQLUSERNAME} --password=${MYSQLPASSWD}
     exit 0
 esac
+
 
