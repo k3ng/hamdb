@@ -1,7 +1,7 @@
 #!/bin/bash
  
 # Hamdb
-# Copyright (C) 2001-2023 Anthony Good
+# Copyright (C) 2001-2024 Anthony Good
  
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -27,10 +27,13 @@
 #
 # GRANT ALL PRIVILEGES ON *.* TO 'hamdb'@localhost IDENTIFIED BY 'yourpassword';
 
+
+# 2024.12.09.1500 : Update from Chris Kinsler to to pull PO Box into address field if address field is blank
+
 STOREDIR=~/hamdb.temp
-VERSION=2024.12.02.1300
+VERSION=2024.12.09.1500
 CONFIGFILE=~/.hamdb.cnf
-DEBUG=1
+DEBUG=0
 USE_CURL_NOT_WGET=0
 WGET=/usr/bin/wget
 CURL=/usr/bin/curl
@@ -155,10 +158,27 @@ case "$1" in
       echo "Unzipping database file HD.dat..."
       ${UNZIP} ./${DOWNLOAD_FILE} HD.dat
     fi
- 
-     if [ ! -f en_temp.txt ]; then
+
+    if [ ! -f HS.dat ]; then
+      echo "Unzipping database file HS.dat..."
+      ${UNZIP} ./${DOWNLOAD_FILE} HS.dat
+    fi
+
+    #if [ ! -f en_temp.txt ]; then
+    #  echo "Creating temporary file for table en..."
+    #  cat ./EN.dat |sed s/[\\\"]//g|awk -F "|" '{print "\""$2"\",\""$5"\",\""$8"\",\""$9"\",\""$10"\",\""$11"\",\""$16"\",\""$17"\",\""$18"\",\""$19"\""}'>./en_temp.txt
+    #fi
+
+    if [ ! -f en_temp.txt ]; then
       echo "Creating temporary file for table en..."
-      cat ./EN.dat |sed s/[\\\"]//g|awk -F "|" '{print "\""$2"\",\""$5"\",\""$8"\",\""$9"\",\""$10"\",\""$11"\",\""$16"\",\""$17"\",\""$18"\",\""$19"\""}'>./en_temp.txt
+      cat ./EN.dat | sed s/[\\\"]//g | awk -F "|" '{
+        address = $16;
+        pobox = $20;
+        if (address1== "") {
+            address = "PO Box " pobox;
+        }
+        print "\"" $2 "\",\"" $5 "\",\"" $8 "\",\"" $9 "\",\"" $10 "\",\"" $11 "\",\"" address "\",\"" $17 "\",\"" $18 "\",\"" $19 "\""
+    }' > ./en_temp.txt
     fi
  
     if [ ! -f am_temp.txt ]; then
@@ -183,8 +203,20 @@ case "$1" in
 
     fi
 
-echo "Dates reformatted and saved to $output_file"
- 
+    if [ ! -f hs_temp.txt ]; then
+      echo "Creating temporary file for table hs..."
+      cat ./HS.dat |sed s/[\\\"]//g|awk -F "|" '{print "\""$2"\",\""$4"\",\""$5"\",\""$6"\""}'>./hs_temp_temp.txt
+      awk -F, '{
+      # Remove quotes for processing
+      gsub(/"/, "", $0);
+      # Reformat date (3rd field) from MM/DD/YYYY to YYYY-MM-DD
+      split($3, date_parts, "/");
+      $3 = date_parts[3] "-" date_parts[1] "-" date_parts[2];
+      # Print the reformatted line with quotes restored
+      print "\"" $1 "\",\"" $2 "\",\"" $3 "\",\"" $4 "\""
+      }' "./hs_temp_temp.txt" > "./hs_temp.txt"
+    fi
+
     if [ ${FULLIMPORT} -eq 1 ]; then
 
       echo "Doing full database import..."
