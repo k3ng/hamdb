@@ -37,8 +37,11 @@
 #                   Created lastissued <state> command to show most recently issued licenses in a state
 #                   Created lastissued <zipcode> command to show most recently issued licenses in a zip code (partial zip codes are OK)
 
+# 2024.12.18.2000 : wget stopped working for some unknown reason; updated the wget --user-agent and it started working again
+
+
 STOREDIR=~/hamdb.temp
-VERSION=2024.12.10.0016
+VERSION=2024.12.18.2000
 CONFIGFILE=~/.hamdb.cnf
 DEBUG=0
 USE_CURL_NOT_WGET=0
@@ -46,6 +49,11 @@ WGET=/usr/bin/wget
 CURL=/usr/bin/curl
 UNZIP=/usr/bin/unzip
 DAY=`date -d "-1 day" | tr '[:upper:]' '[:lower:]' | sed 's/\([a-z]*\).*/\1/'`
+
+WGET_OPTIONS="-nd -d"
+WGET_HEADER="Accept: text/html"
+#WGET_USER_AGENT="Mozilla/5.0 (Macintosh; Intel Mac OS X 10.8; rv:21.0) Gecko/20100101 Firefox/21.0"
+WGET_USER_AGENT="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko)"
 
 # if today is Monday, get the full file, otherwise get a smaller daily update file
 if [ ${DAY} == sun ]; then
@@ -64,10 +72,10 @@ fi
 
 
 if [ ${FULLIMPORT} -eq 1 ]; then
-  FCC_FILE_LOCATION=https://data.fcc.gov/download/pub/uls/complete//l_amat.zip
+  FCC_FILE_LOCATION=https://data.fcc.gov/download/pub/uls/complete/l_amat.zip
   DOWNLOAD_FILE=l_amat.zip
 else
-  FCC_FILE_LOCATION=https://data.fcc.gov/download/pub/uls/daily//l_am_${DAY}.zip
+  FCC_FILE_LOCATION=https://data.fcc.gov/download/pub/uls/daily/l_am_${DAY}.zip
   DOWNLOAD_FILE=l_am_${DAY}.zip
 fi
 
@@ -133,7 +141,7 @@ case "$1" in
       if [ $USE_CURL_NOT_WGET -eq 1 ]; then
         $CURL -O $FCC_FILE_LOCATION
       else
-        $WGET -nd -d --header="Accept: text/html" --user-agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10.8; rv:21.0) Gecko/20100101 Firefox/21.0" $FCC_FILE_LOCATION
+        $WGET $WGET_OPTIONS --header="$WGET_HEADER" --user-agent="$WGET_USER_AGENT" $FCC_FILE_LOCATION
       fi
   ;;
  
@@ -148,7 +156,8 @@ case "$1" in
       if [ $USE_CURL_NOT_WGET -eq 1 ]; then
         $CURL -O $FCC_FILE_LOCATION
       else
-        $WGET -nd -d --header="Accept: text/html" --user-agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10.8; rv:21.0) Gecko/20100101 Firefox/21.0" $FCC_FILE_LOCATION
+        #$WGET -nd -d --header="Accept: text/html" --user-agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10.8; rv:21.0) Gecko/20100101 Firefox/21.0" $FCC_FILE_LOCATION
+        $WGET $WGET_OPTIONS --header="$WGET_HEADER" --user-agent="$WGET_USER_AGENT" $FCC_FILE_LOCATION
       fi
     fi
  
